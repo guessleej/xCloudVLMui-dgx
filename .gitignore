@@ -62,3 +62,4 @@ nginx/ssl/
 backend/chat.py
 backend/knowledge.py
 backend/rag_service.py
+.github/workflows/
