@@ -16,12 +16,12 @@ import { ragApi } from "@/lib/api";
 import type { RagMessage } from "@/types";
 
 const SUGGESTED = [
-  "壓縮機軸承異音該如何排查？",
-  "散熱風扇效率下降的常見原因與清潔 SOP？",
-  "液壓密封圈滲油的標準維修步驟是什麼？",
-  "VHS 分數跌破 40 時，第一線要先做哪些事？",
-  "輸送帶邊緣龜裂時，預防維護工單應如何描述？",
-  "設備停機前有哪些典型的先期徵兆？",
+  "壓縮機軸承異音如何排查？",
+  "散熱風扇效率下降的清潔 SOP？",
+  "液壓密封圈滲油的維修步驟？",
+  "VHS 跌破 40 第一線先做什麼？",
+  "輸送帶邊緣龜裂工單如何描述？",
+  "設備停機前有哪些先期徵兆？",
 ];
 
 export default function ChatInterface() {
@@ -36,7 +36,6 @@ export default function ChatInterface() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // 自動調整 textarea 高度（支援 Shift+Enter 換行）
   useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
@@ -81,11 +80,9 @@ export default function ChatInterface() {
           role: "assistant",
           content:
             `RAG 服務暫時無法連線。\n\n` +
-            `錯誤資訊：${error?.response?.data?.detail ?? error.message}\n\n` +
-            `請確認後端、向量索引與 llama.cpp 已完成啟動。`,
+            `錯誤：${error?.response?.data?.detail ?? error.message}`,
           created_at: new Date().toISOString(),
         };
-
         setMessages((current) => [...current, assistantMessage]);
       } finally {
         setLoading(false);
@@ -95,9 +92,9 @@ export default function ChatInterface() {
     [loading, sessionId]
   );
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
-      event.preventDefault();
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
       sendMessage(input);
     }
   };
@@ -105,120 +102,103 @@ export default function ChatInterface() {
   return (
     <div className="flex h-full flex-col">
 
-      {/* ── 訊息區 / 空狀態 ─────────────────────────────── */}
-      {messages.length === 0 ? (
-        <div className="flex flex-1 flex-col overflow-y-auto px-4 py-3 sm:px-5">
-          {/* 簡潔說明列 */}
-          <div className="mb-3 flex items-center gap-2">
-            <Search className="h-4 w-4 shrink-0 text-accent-300" />
-            <p className="text-xs text-slate-400">
-              搜尋維修手冊、SOP 與歷史工單，由 Gemma 4 E4B 生成可追溯回答
-            </p>
-            <div className="ml-auto flex shrink-0 items-center gap-1.5">
-              <span className="signal-chip !py-0.5 !text-[10px]">
-                <BookOpenText className="h-3 w-3 text-accent-300" />維修手冊
-              </span>
-              <span className="signal-chip !py-0.5 !text-[10px]">
-                <Sparkles className="h-3 w-3 text-brand-300" />SOP / 工單
-              </span>
-            </div>
+      {/* ── 訊息捲動區 ──────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-5">
+        {messages.length === 0 ? (
+          /* 空狀態：置中提示 */
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+            <Search className="h-8 w-8 text-slate-600" />
+            <p className="text-sm text-slate-500">搜尋維修手冊、SOP 與工單知識庫</p>
+            <p className="text-xs text-slate-600">由 Gemma 4 E4B 生成可追溯回答</p>
           </div>
-
-          {/* 建議問題 — 緊湊 2 欄網格 */}
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {SUGGESTED.map((question) => (
-              <button
-                key={question}
-                onClick={() => sendMessage(question)}
-                className="rounded-2xl border border-white/8 bg-white/[0.035] px-3 py-2.5 text-left text-xs leading-5 text-slate-300 transition-all duration-150 hover:border-accent-400/30 hover:bg-accent-400/8 hover:text-white"
+        ) : (
+          /* 對話訊息 */
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <button onClick={() => setMessages([])} className="ghost-button !py-0.5 !text-xs">
+                <Trash2 className="h-3.5 w-3.5" />清除
+              </button>
+            </div>
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex gap-2.5 ${message.role === "user" ? "flex-row-reverse" : "flex-row"}`}
               >
-                {question}
+                <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border ${
+                  message.role === "user"
+                    ? "border-brand-400/20 bg-brand-500/10"
+                    : "border-white/10 bg-slate-950/35"
+                }`}>
+                  {message.role === "user"
+                    ? <User className="h-3.5 w-3.5 text-white" />
+                    : <Search className="h-3.5 w-3.5 text-accent-200" />}
+                </div>
+
+                <div className={message.role === "user" ? "chat-bubble-user max-w-[86%]" : "chat-bubble-ai max-w-[90%]"}>
+                  {message.role === "assistant" ? (
+                    <div className="markdown-body text-sm">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm leading-6">{message.content}</p>
+                  )}
+
+                  {message.sources && message.sources.length > 0 && (
+                    <div className="mt-3 border-t border-white/8 pt-3">
+                      <p className="mb-1.5 text-[10px] uppercase tracking-[0.2em] text-slate-500">來源</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {message.sources.map((s, i) => (
+                          <span key={`${s.filename}-${i}`} className="table-chip">
+                            {s.filename}{s.page && ` p.${s.page}`}{s.score !== undefined && ` ${(s.score * 100).toFixed(0)}%`}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {loading && (
+              <div className="flex gap-2.5">
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-white/10 bg-slate-950/35">
+                  <Search className="h-3.5 w-3.5 text-accent-200" />
+                </div>
+                <div className="chat-bubble-ai flex items-center gap-2">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-brand-300" />
+                  <span className="text-sm text-slate-300">正在檢索知識庫...</span>
+                </div>
+              </div>
+            )}
+            <div ref={bottomRef} />
+          </div>
+        )}
+      </div>
+
+      {/* ── 建議問題（僅無訊息時顯示）──────────────────── */}
+      {messages.length === 0 && (
+        <div className="px-4 pb-2 sm:px-5">
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+            {SUGGESTED.map((q) => (
+              <button
+                key={q}
+                onClick={() => sendMessage(q)}
+                className="rounded-xl border border-white/8 bg-white/[0.03] px-2.5 py-2 text-left text-[11px] leading-4 text-slate-400 transition-colors hover:border-accent-400/30 hover:bg-accent-400/8 hover:text-slate-200"
+              >
+                {q}
               </button>
             ))}
           </div>
         </div>
-      ) : (
-        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-3 sm:px-5">
-          {/* 清除按鈕 — 靠右浮動 */}
-          <div className="flex justify-end">
-            <button onClick={() => setMessages([])} className="ghost-button !py-0.5 !text-xs">
-              <Trash2 className="h-3.5 w-3.5" />清除對話
-            </button>
-          </div>
-
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex gap-2.5 ${message.role === "user" ? "flex-row-reverse" : "flex-row"}`}
-            >
-              <div
-                className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border ${
-                  message.role === "user"
-                    ? "border-brand-400/20 bg-brand-500/10"
-                    : "border-white/10 bg-slate-950/35"
-                }`}
-              >
-                {message.role === "user" ? (
-                  <User className="h-3.5 w-3.5 text-white" />
-                ) : (
-                  <Search className="h-3.5 w-3.5 text-accent-200" />
-                )}
-              </div>
-
-              <div className={message.role === "user" ? "chat-bubble-user max-w-[86%]" : "chat-bubble-ai max-w-[90%]"}>
-                {message.role === "assistant" ? (
-                  <div className="markdown-body text-sm">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {message.content}
-                    </ReactMarkdown>
-                  </div>
-                ) : (
-                  <p className="text-sm leading-6">{message.content}</p>
-                )}
-
-                {message.sources && message.sources.length > 0 && (
-                  <div className="mt-3 border-t border-white/8 pt-3">
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">參考來源</p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {message.sources.map((source, index) => (
-                        <span
-                          key={`${source.filename}-${index}`}
-                          className="table-chip"
-                        >
-                          {source.filename}
-                          {source.page && ` p.${source.page}`}
-                          {source.score !== undefined && ` ${(source.score * 100).toFixed(0)}%`}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-
-          {loading && (
-            <div className="flex gap-2.5">
-              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-white/10 bg-slate-950/35">
-                <Search className="h-3.5 w-3.5 text-accent-200" />
-              </div>
-              <div className="chat-bubble-ai flex items-center gap-2">
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-brand-300" />
-                <span className="text-sm text-slate-300">正在檢索手冊與 SOP...</span>
-              </div>
-            </div>
-          )}
-          <div ref={bottomRef} />
-        </div>
       )}
 
-      {/* ── 輸入區 ─────────────────────────────────────── */}
-      <div className="border-t border-white/8 px-4 py-3 sm:px-5">
+      {/* ── 輸入列 ──────────────────────────────────────── */}
+      <div className="border-t border-white/8 px-4 py-2.5 sm:px-5">
         <div className="flex items-end gap-2">
           <textarea
             ref={inputRef}
             value={input}
-            onChange={(event) => setInput(event.target.value)}
+            onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="輸入設備問題或維修需求，Enter 送出，Shift+Enter 換行…"
             rows={1}
